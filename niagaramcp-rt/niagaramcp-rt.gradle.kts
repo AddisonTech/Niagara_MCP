@@ -5,6 +5,7 @@
 
 import com.tridium.gradle.plugins.bajadoc.task.Bajadoc
 import com.tridium.gradle.plugins.module.util.ModulePart.RuntimeProfile.*
+import com.tridium.gradle.plugins.task.SigningAwareArchiveTaskExtension
 
 plugins {
   id("com.tridium.niagara-module")
@@ -46,6 +47,16 @@ sourceSets {
       include("WEB-INF/**")
       include("sample-knowledge.yaml")
     }
+  }
+}
+
+// Standalone build: the Niagara signing plugin installs the jar into
+// $niagara_home/modules by default. Keep it under build/ instead, and sign
+// only when niagaramcp.sign=true (needs a signing profile, see BUILDING.md).
+tasks.named<Jar>("jar") {
+  extensions.configure<SigningAwareArchiveTaskExtension>("signing") {
+    installDir.set(layout.buildDirectory.dir("module"))
+    enabled.set(providers.gradleProperty("niagaramcp.sign").map { it.toBoolean() }.orElse(false))
   }
 }
 
