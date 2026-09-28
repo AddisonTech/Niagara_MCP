@@ -106,6 +106,12 @@ and import it into the trust store of the test host only.
 Read [docs/SAFETY.md](docs/SAFETY.md) before starting any station copied
 from a live site.
 
+On a station, the module can only read and write files inside the station
+directory. The default knowledge file location is outside it, so `/health`,
+`getServerInfo` and `getServiceHealth` fail with a `FilePermission` error.
+Set `knowledgeFilePath` on `McpPlatformService` to a path under the station
+directory, for example `<station>/shared/niagaramcp/knowledge.yaml`.
+
 ## Other Niagara versions
 
 The plugin versions in `gradle.properties` are the ones that ship with
@@ -119,3 +125,33 @@ Niagara 4.15.4. When you build against another release, check
 
 The module manifest records dependency versions as `major.minor` (for
 example `vendorVersion="4.15"`), taken from the install being built against.
+
+Use `-PbuildDirName` to keep each release's output separate. The build then
+writes to `niagaramcp-rt/<dir>/` instead of `niagaramcp-rt/build/`, so a
+4.14 jar never overwrites a 4.15 jar. These folders are gitignored.
+
+### Niagara 4.14
+
+The code builds unchanged against 4.14. Installs of 4.14.2 ship plugin
+version 7.6.17 and pin Gradle 7.6. The wrapper in this repo pins 7.6.4, so
+run a Gradle 7.6 distribution directly:
+
+```powershell
+<gradle-7.6>\bin\gradle.bat :niagaramcp-rt:jar `
+  -Pniagara_home=C:/Niagara/Niagara-4.14.x.y `
+  -PniagaraGradlePluginVersion=7.6.17 `
+  -PbuildDirName=build-4.14 `
+  -Pniagaramcp.sign=true
+```
+
+Later 4.14 installs may ship 7.6.22. Check the install's m2 repository.
+
+Signing profiles made by plugin 7.6.22 (Niagara 4.15) store the key password
+under the lower-cased alias (`niagara.signing.keypass.niagara4modules`).
+Plugin 7.6.17 looks it up with the alias as written
+(`niagara.signing.keypass.Niagara4Modules`), so signing fails with
+`UnrecoverableKeyException`. To sign with the same profile from both
+releases, add a second entry with the alias as written and the same value.
+
+A module built against 4.14 declares `vendorVersion="4.14"` dependencies.
+Niagara treats these as minimums. A 4.15 build will not load on 4.14.

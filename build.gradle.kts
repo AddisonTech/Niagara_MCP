@@ -20,3 +20,12 @@ subprojects {
     mavenCentral()
   }
 }
+
+// Optional -PbuildDirName=<dir> sends all build output to <project>/<dir>
+// instead of build/, so builds against different Niagara releases keep
+// separate jars (e.g. -PbuildDirName=build-4.14).
+providers.gradleProperty("buildDirName").orNull?.let { dirName ->
+  allprojects {
+    layout.buildDirectory.set(layout.projectDirectory.dir(dirName))
+  }
+}

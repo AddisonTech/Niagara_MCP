@@ -53,3 +53,6 @@ keystore.properties
 docs/agent-briefs/
 _local/
 *.local.md
+
+# Per-release build output (-PbuildDirName=build-<version>)
+**/build-*/
