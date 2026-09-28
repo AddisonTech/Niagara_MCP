@@ -7,8 +7,7 @@ package com.niagaramcp.server.tools;
 import javax.baja.alarm.AlarmDbConnection;
 import javax.baja.alarm.BAlarmRecord;
 import javax.baja.alarm.BAlarmService;
-import javax.baja.collection.BITable;
-import javax.baja.collection.TableCursor;
+import javax.baja.sys.Cursor;
 import javax.baja.sys.Sys;
 import com.niagaramcp.json.JSONArray;
 import com.niagaramcp.json.JSONObject;
@@ -46,17 +45,19 @@ public final class GetActiveAlarmsTool implements Tool {
     int rows = 0;
     boolean truncated = false;
     try {
-      BITable<BAlarmRecord> tbl = (BITable<BAlarmRecord>) conn.getOpenAlarms();
-      TableCursor<BAlarmRecord> cur = tbl.cursor();
-      while (cur.next()) {
-        BAlarmRecord rec = cur.get();
-        if (prefix != null && !prefix.isEmpty()) {
-          String ord = sourceOrdString(rec);
-          if (ord == null || !ord.startsWith(prefix)) continue;
+      // AlarmDbConnection returns a Cursor; the file-based alarm db's
+      // OpenCursor is not a BITable, so iterate the cursor directly.
+      try (Cursor<BAlarmRecord> cur = conn.getOpenAlarms()) {
+        while (cur.next()) {
+          BAlarmRecord rec = cur.get();
+          if (prefix != null && !prefix.isEmpty()) {
+            String ord = sourceOrdString(rec);
+            if (ord == null || !ord.startsWith(prefix)) continue;
+          }
+          if (rows >= limit) { truncated = true; break; }
+          alarms.put(toJson(rec));
+          rows++;
         }
-        if (rows >= limit) { truncated = true; break; }
-        alarms.put(toJson(rec));
-        rows++;
       }
     } finally {
       try { conn.close(); } catch (Exception ignored) {}

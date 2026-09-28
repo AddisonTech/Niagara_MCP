@@ -7,8 +7,7 @@ package com.niagaramcp.server.tools;
 import javax.baja.alarm.AlarmDbConnection;
 import javax.baja.alarm.BAlarmRecord;
 import javax.baja.alarm.BAlarmService;
-import javax.baja.collection.BITable;
-import javax.baja.collection.TableCursor;
+import javax.baja.sys.Cursor;
 import javax.baja.sys.BAbsTime;
 import javax.baja.sys.Sys;
 import com.niagaramcp.json.JSONArray;
@@ -58,20 +57,22 @@ public final class GetAlarmHistoryTool implements Tool {
     boolean truncatedByLimit = false, truncatedByTimeout = false;
     long startMs = System.currentTimeMillis();
     try {
-      BITable<BAlarmRecord> tbl = (BITable<BAlarmRecord>) conn.timeQuery(from, to);
-      TableCursor<BAlarmRecord> cur = tbl.cursor();
-      while (cur.next()) {
-        if (System.currentTimeMillis() - startMs >= ITERATION_TIMEOUT_MS) {
-          truncatedByTimeout = true; break;
+      // AlarmDbConnection returns a Cursor; the file-based alarm db's
+      // OpenCursor is not a BITable, so iterate the cursor directly.
+      try (Cursor<BAlarmRecord> cur = conn.timeQuery(from, to)) {
+        while (cur.next()) {
+          if (System.currentTimeMillis() - startMs >= ITERATION_TIMEOUT_MS) {
+            truncatedByTimeout = true; break;
+          }
+          BAlarmRecord rec = cur.get();
+          if (prefix != null && !prefix.isEmpty()) {
+            String ord = GetActiveAlarmsTool.sourceOrdString(rec);
+            if (ord == null || !ord.startsWith(prefix)) continue;
+          }
+          if (rows >= limit) { truncatedByLimit = true; break; }
+          alarms.put(GetActiveAlarmsTool.toJson(rec));
+          rows++;
         }
-        BAlarmRecord rec = cur.get();
-        if (prefix != null && !prefix.isEmpty()) {
-          String ord = GetActiveAlarmsTool.sourceOrdString(rec);
-          if (ord == null || !ord.startsWith(prefix)) continue;
-        }
-        if (rows >= limit) { truncatedByLimit = true; break; }
-        alarms.put(GetActiveAlarmsTool.toJson(rec));
-        rows++;
       }
     } finally {
       try { conn.close(); } catch (Exception ignored) {}
